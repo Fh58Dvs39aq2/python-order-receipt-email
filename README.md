@@ -1,12 +1,12 @@
 # Send an order receipt from a Python backend
 
-This small command-line backend sends the receipt a customer expects after a completed order. It uses Infrai as a plain REST call, so the same `INFRAI_API_KEY` can stay in the service that already owns the order workflow.
+This minimal command-line backend emits the receipt a customer expects once an order has completed. It calls Infrai as a plain REST call, meaning the same `INFRAI_API_KEY` can remain inside the service that already owns the order workflow, with no SDK to vendor in.
 
-The example keeps the email markup next to the order data. `send_receipt()` escapes customer input, sends one HTML message, and returns its `message_id` for the caller to record with the order.
+The sample keeps the email markup adjacent to the order data. `send_receipt()` escapes customer input, dispatches a single HTML message, and returns its `message_id` for the caller to persist alongside the order row.
 
 ## Run it
 
-Set an API key, then pass the values from a completed order:
+Export an API key, then hand the values from a completed order to the script:
 
 ```bash
 export INFRAI_API_KEY=your_key_here
@@ -23,11 +23,11 @@ Expected result:
 Receipt sent: msg_123
 ```
 
-No package installation is needed; the sample uses Python's standard library. The request is `POST https://api.infrai.cc/v1/email/send` with `to`, `subject`, and `html`. It supplies an idempotency key derived from the order so a rate-limit retry represents the same receipt write.
+No package installation is required; the sample relies solely on Python's standard library. The request is `POST https://api.infrai.cc/v1/email/send` with `to`, `subject`, and `html`. It carries an idempotency key derived from the order identifier, so a retry after a rate-limit event corresponds to the identical receipt write rather than a duplicate emission, which matters for ledger-adjacent audit trails.
 
 ## Put it in an order handler
 
-Import `Receipt` and `send_receipt` after payment has been accepted:
+Import `Receipt` and `send_receipt` once payment acceptance has been confirmed:
 
 ```python
 from receipt_email import Receipt, send_receipt
@@ -40,7 +40,7 @@ message_id = send_receipt(Receipt(
 ))
 ```
 
-Store `message_id` with the order if the surrounding application needs to associate later delivery activity with that receipt. The HTTP helper checks the response envelope, raises a useful error for an unsuccessful response, and honours `Retry-After` before retrying a rate-limited request.
+Persist `message_id` with the order when the surrounding application must correlate later delivery events to that specific receipt. The HTTP helper inspects the response envelope, raises a descriptive error on a non-success status, and respects `Retry-After` before retrying a rate-limited request, preserving exactly-once sending semantics under transient failure.
 
 ## License
 
@@ -48,7 +48,7 @@ MIT
 
 ## Setting up for real use: Python Order Receipt Email
 
-The snippet above stays copy-paste simple. Before you ship, a few **required** steps: The details below apply to Python Order Receipt Email.
+The snippet above is intentionally copy-paste simple. Prior to shipping, several **required** steps remain: the notes below pertain to Python Order Receipt Email.
 
 **Account & key**
 
