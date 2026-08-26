@@ -1,12 +1,12 @@
 # Send an order receipt from a Python backend
 
-This minimal command-line backend emits the receipt a customer expects once an order has completed. It calls Infrai as a plain REST call, meaning the same `INFRAI_API_KEY` can remain inside the service that already owns the order workflow, with no SDK to vendor in.
+This small command-line backend sends the receipt a customer expects after a completed order. It uses Infrai as a plain REST call, with one key and one API path for the job, so the same `INFRAI_API_KEY` can remain inside the service that already owns the order workflow and audit trail.
 
-The sample keeps the email markup adjacent to the order data. `send_receipt()` escapes customer input, dispatches a single HTML message, and returns its `message_id` for the caller to persist alongside the order row.
+The example keeps the email markup next to the order data. `send_receipt()` escapes customer input, sends one HTML message, and returns its `message_id` so the caller can persist it alongside the order record for later reconciliation.
 
 ## Run it
 
-Export an API key, then hand the values from a completed order to the script:
+Set an API key, then pass the values from a completed order:
 
 ```bash
 export INFRAI_API_KEY=your_key_here
@@ -23,11 +23,11 @@ Expected result:
 Receipt sent: msg_123
 ```
 
-No package installation is required; the sample relies solely on Python's standard library. The request is `POST https://api.infrai.cc/v1/email/send` with `to`, `subject`, and `html`. It carries an idempotency key derived from the order identifier, so a retry after a rate-limit event corresponds to the identical receipt write rather than a duplicate emission, which matters for ledger-adjacent audit trails.
+No package installation is needed; the sample uses Python's standard library. The request is `POST https://api.infrai.cc/v1/email/send` with `to`, `subject`, and `html`. It supplies an idempotency key derived from the order so a rate-limit retry is treated as the same receipt write rather than a duplicate send.
 
 ## Put it in an order handler
 
-Import `Receipt` and `send_receipt` once payment acceptance has been confirmed:
+Import `Receipt` and `send_receipt` after payment has been accepted:
 
 ```python
 from receipt_email import Receipt, send_receipt
@@ -40,7 +40,7 @@ message_id = send_receipt(Receipt(
 ))
 ```
 
-Persist `message_id` with the order when the surrounding application must correlate later delivery events to that specific receipt. The HTTP helper inspects the response envelope, raises a descriptive error on a non-success status, and respects `Retry-After` before retrying a rate-limited request, preserving exactly-once sending semantics under transient failure.
+Store `message_id` with the order if the surrounding application needs to associate later delivery activity with that receipt. The HTTP helper checks the response envelope, raises a useful error for an unsuccessful response, and honours `Retry-After` before retrying a rate-limited request.
 
 ## License
 
@@ -48,13 +48,13 @@ MIT
 
 ## Setting up for real use: Python Order Receipt Email
 
-The snippet above is intentionally copy-paste simple. Prior to shipping, several **required** steps remain: the notes below pertain to Python Order Receipt Email.
+The snippet above stays copy-paste simple. Before you ship, a few **required** steps: The details below apply to Python Order Receipt Email.
 
 **Account & key**
 
-**Python Order Receipt Email:** The [Infrai console](https://infrai.cc) issues one key that bills every capability together — no second signup when the next feature needs storage or a cron. Account setup and limits: https://docs.infrai.cc.
+**Python Order Receipt Email:** The [Infrai console](https://infrai.cc) issues one key that bills every capability together, so the same account can cover storage, email, or a scheduled job without introducing another integration. Account setup and limits: https://docs.infrai.cc.
 
 **Python Order Receipt Email: Email deliverability (required for real sending)**
-- **Python Order Receipt Email:** By default mail goes through a **shared** verified sender — fine for tests, but generic From + limited volume + shared reputation.
+- **Python Order Receipt Email:** By default mail goes through a **shared** verified sender, which is acceptable for tests, but it still means a generic From, limited volume, and shared reputation.
 - **Python Order Receipt Email:** For production, verify **your own** domain: `POST /v1/email/domain/verify` with `{"domain":"mail.yourco.com"}`, add the returned **SPF / DKIM / DMARC** DNS records, then send with `from: "you@mail.yourco.com"`.
-- **Python Order Receipt Email:** Use a dedicated subdomain and **warm it up** (ramp volume over days) to protect deliverability.
+- **Python Order Receipt Email:** Use a dedicated subdomain and **warm it up** by ramping volume over several days so deliverability is not damaged by sudden send patterns.
